@@ -30,33 +30,7 @@ entirely a hobby project, and it's really early stage.
 
 ## Execution Environment
 
-The runtime exposes three functions in the module.
-
-### `timestamp`
-
-This exposes the method to fetch timestamp from a block, defined as
-
-```
-fn timestamp(block_ptr: i32, block_len: i32) -> i64;
-```
-
-After instantiation, the caller should copy raw block binary into
-`memory`, of `block_ptr` and `block_len` respectively. The result
-should be `-1` if the block is invalid, and a positive value
-otherwise.
-
-### `difficulty`
-
-This exposes the method to fetch difficulty from a block, defined as
-
-```
-fn difficulty(block_ptr: i32, block_len: i32) -> i64;
-```
-
-After instantiation, the caller should copy raw block binary into
-`memory`, of `block_ptr` and `block_len` respectively. The result
-should be `-1` if the block is invalid, and a positive value
-otherwise.
+The runtime is only required to expose one functions in the module.
 
 ### `execute`
 
@@ -80,15 +54,19 @@ within the `memory`, and set `code_ptr`, `code_len_ptr` respectively.
 
 The runtime can change `code` being executed for the next block by
 modifying memory location of `code_ptr` and `code_len_ptr`, which the
-caller is responsible to fetch after the call. The result should be
-`-1` if execution is invalid, and `0` otherwise.
+caller is responsible to fetch after the call. The function returns
+`-1` if execution is invalid. Otherwise, the result is the difficulty
+of the new block.
 
 ## Pre-validation and Fork Choice
 
-Before calling runtime's `execute` function for a block. The client is
-responsible to verify that `timestamp` (by using the `timestamp`
-function in the runtime) is reasonble. The margin is up to each client
-implementation.
+When mining, it is always expected that the miner uses a client whose
+native version supports the current WebAssembly runtime. In this case,
+the miner should be able to decode `timestamp` from incoming
+blocks. The client is then responsible to verify that `timestamp` is
+reasonble. The margin is up to each client implementation. When only
+validating blocks, it is not required to verify `timestamp` before
+passing it to `execute` function, but it is still recommended.
 
 Fork choice rule is defined as choosing the block with the highest
 total difficulty. Notice that although we don't limit what the PoW
