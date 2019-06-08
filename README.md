@@ -1,6 +1,6 @@
 # Solri Blockchain Experiment
 
-![Discord](https://img.shields.io/discord/586902457053872148.svg)
+[![Discord](https://img.shields.io/discord/586902457053872148.svg)](https://discord.gg/DZbg4rZ)
 
 Solri is a blockchain experiment that tries to bring
 [Substrate](https://github.com/paritytech/substrate) style on-chain
