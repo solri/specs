@@ -50,7 +50,7 @@ and executing block binary into `memory`, and set `parent_block_ptr`,
 `parent_block_len`, `block_ptr` and `block_len` respectively. The
 caller should also copy the current WebAssembly code being executed
 into `memory` where its length (32 bit) should be set in another
-location within the `memory`, and set `code_ptr`, `code_len_ptr` 
+location within the `memory`, and set `code_ptr`, `code_len_ptr`
 respectively.
 
 The runtime can change `code` being executed for the next block by
@@ -58,6 +58,14 @@ modifying memory location of `code_ptr` and `code_len_ptr`, which the
 caller is responsible to fetch after the call. The function returns
 `-1` if execution is invalid. Otherwise, the result is the difficulty
 of the new block.
+
+## Block
+
+The first 512-bit of a block is reserved for its header information,
+the rest is up to the runtime's interpretation. The first 256-bit must
+be a block's *hash*. The next 256-bit must be a block's *parent
+hash*. The runtime must ensure that two *valid* blocks will not have
+the same hash.
 
 ## Pre-validation and Fork Choice
 
