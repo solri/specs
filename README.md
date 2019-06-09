@@ -42,15 +42,16 @@ fn execute(
   parent_block_ptr: i32, parent_block_len: i32,
   code_ptr: i32, code_len_ptr: i32,
   block_ptr: i32, block_len: i32
-) -> i32;
+) -> i64;
 ```
 
 After instantiation, the caller should copy raw parent block binary,
 and executing block binary into `memory`, and set `parent_block_ptr`,
 `parent_block_len`, `block_ptr` and `block_len` respectively. The
 caller should also copy the current WebAssembly code being executed
-into `memory` where its length should be set in another location
-within the `memory`, and set `code_ptr`, `code_len_ptr` respectively.
+into `memory` where its length (32 bit) should be set in another
+location within the `memory`, and set `code_ptr`, `code_len_ptr` 
+respectively.
 
 The runtime can change `code` being executed for the next block by
 modifying memory location of `code_ptr` and `code_len_ptr`, which the
