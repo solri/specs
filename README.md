@@ -39,15 +39,14 @@ parent block provided and code provided is valid, defined as:
 
 ```
 fn execute(
-  parent_block_ptr: i32, parent_block_len: i32,
   code_ptr: i32, code_len_ptr: i32,
-  block_ptr: i32, block_len: i32
+  block_ptr: i32, block_len: i32,
+  result_ptr: i32,
 ) -> i64;
 ```
 
-After instantiation, the caller should copy raw parent block binary,
-and executing block binary into `memory`, and set `parent_block_ptr`,
-`parent_block_len`, `block_ptr` and `block_len` respectively. The
+After instantiation, the caller should copy executing block binary
+into `memory`, and set `block_ptr` and `block_len` respectively. The
 caller should also copy the current WebAssembly code being executed
 into `memory` where its length (32 bit) should be set in another
 location within the `memory`, and set `code_ptr`, `code_len_ptr`
@@ -56,26 +55,41 @@ respectively.
 The runtime can change `code` being executed for the next block by
 modifying memory location of `code_ptr` and `code_len_ptr`, which the
 caller is responsible to fetch after the call. The function returns
-`-1` if execution is invalid. Otherwise, the result is the difficulty
-of the new block.
+`-1` if execution is invalid. Otherwise, the result is `0`.
+
+If the execution is successful, the runtime is expected to return the
+necessary metadata for the caller to further consider the validity of
+the block and be able to store it in database. The structure should be
+set at `result_ptr`, using C representation:
+
+```
+#[repr(C)]
+struct {
+  parent_hash: [u8; 32],
+  hash: [u8; 32],
+  timestamp: i64,
+  difficulty: i64,
+}
+```
+
+If the execution was invalid, the caller should not assume data under
+`result_ptr`.
 
 ## Block
 
-The first 512-bit of a block is reserved for its header information,
-the rest is up to the runtime's interpretation. The first 256-bit must
-be a block's *hash*. The next 256-bit must be a block's *parent
-hash*. The runtime must ensure that two *valid* blocks will not have
-the same hash.
+The full block is up to interpretation of the runtime. The runtime
+should return metadata required as defined above.
 
-## Pre-validation and Fork Choice
+## Timestamp Validation and Fork Choice
 
 When mining, it is always expected that the miner uses a client whose
 native version supports the current WebAssembly runtime. In this case,
 the miner should be able to decode `timestamp` from incoming
 blocks. The client is then responsible to verify that `timestamp` is
-reasonble. The margin is up to each client implementation. When only
-validating blocks, it is not required to verify `timestamp` before
-passing it to `execute` function, but it is still recommended.
+reasonable. The margin is up to each client implementation. When only
+validating blocks, one can use the returned metadata to know the
+validity of the block, if native version and WebAssembly runtime
+mismatches.
 
 Fork choice rule is defined as choosing the block with the highest
 total difficulty. Notice that although we don't limit what the PoW
@@ -86,7 +100,8 @@ difficulty, to ensure backward compatibility.
 
 The actual `runtime` (which exposes `execute`) function is expected to
 be stateless. Notice we don't provide any imports for the execution
-environment.
+environment. The initial runtime only supports two operations --
+transfer, and runtime upgrade.
 
 One method to do this is to require each transaction to provide merkle
 proof for all execution it requires. The current design is as follows.
