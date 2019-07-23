@@ -55,7 +55,10 @@ respectively.
 The runtime can change `code` being executed for the next block by
 modifying memory location of `code_ptr` and `code_len_ptr`, which the
 caller is responsible to fetch after the call. The function returns
-`-1` if execution is invalid. Otherwise, the result is `0`.
+`-1` if the block is deemed invalid. Otherwise, the result is `0`.
+
+If the runtime cannot execute on the current WebAssembly executor, it
+should trap (for example, by using the `unreachable` opcode).
 
 If the execution is successful, the runtime is expected to return the
 necessary metadata for the caller to further consider the validity of
