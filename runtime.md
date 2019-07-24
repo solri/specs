@@ -5,56 +5,98 @@ runtime.
 
 ## Execution Environment
 
-The runtime is only required to expose one functions in the module.
+The following section defines how the execution environment for Solri
+works.
 
-### `execute`
+### Memory Management
 
-This exposes the method to execute a block for a runtime, assuming
-parent block provided and code provided is valid, defined as:
+A WebAssembly instance for Solri is expected to handle its own memory
+management. The instance is expected to be long-standing, and might
+handle executing multiple blocks.
+
+First, the guest is expected to export its linear memory. This is to
+make it possible that host can read slice of data (blocks, code, and
+metadata) from guest. The host will not attempt to allocate any
+memory, nor handle any other memory management functionality for the
+guest.
+
+The guest should also exports the following functions:
+
+* `fn write_code(len: i32) -> i32`: indicates that the host wants to
+  write the `code` parameter prior of calling `execute` function. The
+  return value should be the address in guest where host can write the
+  data slice.
+* `fn write_block(len: i32) -> i32`: indicates that the host wants to
+  write the `block` parameter prior of calling `execute` function. The
+  return value should be the address in guest where host can write the
+  data slice.
+* `fn read_metadata() -> i32`: available after `execute` is
+  called. This indicates that the host can read the metadata result of
+  the block at the given address.
+* `fn free()`: frees wrote code, block parameters, and metadata
+  result, if any.
+
+### Block Execution
+
+This section defines the `execute` export, which exposes the method to
+execute a block for a runtime, assuming parent block provided and code
+provided is valid, defined as:
 
 ```
-fn execute(
-  code_ptr: i32, code_len_ptr: i32,
-  block_ptr: i32, block_len: i32,
-  result_ptr: i32,
-) -> i64;
+fn execute() -> i32;
 ```
 
-After instantiation, the caller should copy executing block binary
-into `memory`, and set `block_ptr` and `block_len` respectively. The
-caller should also copy the current WebAssembly code being executed
-into `memory` where its length (32 bit) should be set in another
-location within the `memory`, and set `code_ptr`, `code_len_ptr`
-respectively.
+Prior of calling this function, the host should first call
+`write_code` and `write_block` to feed in the code and block data
+slice. If the values are not available, it is an invalid call and the
+guest should trap.
 
 The runtime can change `code` being executed for the next block by
-modifying memory location of `code_ptr` and `code_len_ptr`, which the
-caller is responsible to fetch after the call. The function returns
-`-1` if the block is deemed invalid. Otherwise, the result is `0`.
+modifying memory location and pass the result values in metadata. The
+function returns `-1` if the block is deemed invalid. Otherwise, the
+result is `0`.
 
 If the runtime cannot execute on the current WebAssembly executor, it
 should trap (for example, by using the `unreachable` opcode).
 
 If the execution is successful, the runtime is expected to return the
-necessary metadata for the caller to further consider the validity of
+necessary metadata for the host to further consider the validity of
 the block and be able to store it in database. The structure should be
 set at `result_ptr`, using C representation:
 
 ```
 #[repr(C)]
-struct {
-  parent_hash: [u8; 32],
-  hash: [u8; 32],
+struct Metadata {
   timestamp: i64,
   difficulty: i64,
+  
+  parent_hash_ptr: i32,
+  parent_hash_len: i32,
+  
+  hash_ptr: i32,
+  hash_len: i32,
+  
+  code_ptr: i32,
+  code_len: i32,
 }
 ```
 
-If the execution was invalid, the caller should not assume data under
-`result_ptr`.
-
 The full block is up to interpretation of the runtime. The runtime
-should return metadata required as defined above.
+should return metadata required as defined above. The host can fetch
+the metadata using `read_metadata` function. If the execution was
+invalid, the host should not assume data under `result_ptr`.
+
+`execute` should always be used together with memory management
+functions. A typical cycle looks like below:
+
+* Call `write_code` for guest to allocate memory for code data
+  slice. Then copy code parameter to guest memory.
+* Call `write_block` for guest to allocate memory for block data
+  slice. Then copy block parameter to guest memory.
+* Call `execute`.
+* Call `read_metadata` if execution was successful, and copy metadata
+  result from guest back to host.
+* Call `free` to deallocate parameters and results.
 
 ## Timestamp Validation and Fork Choice
 
