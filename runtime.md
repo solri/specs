@@ -159,7 +159,7 @@ The block structures are defined as follows:
 type Difficulty = u128;
 type Timestamp = u64;
 type Signature = H512;
-type StateProof = bm::CompactValue<bm_le::Intermediate, bm_le::End>;
+type StateProof = bm::CompactValue<bm_le::Value>;
 
 enum TransferId {
   Coinbase,
